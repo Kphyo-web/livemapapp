@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script>
+  // Configuration
+  const backend = 'http://localhost:3000'; // Change to your deployed domain when live
+  const userId = 'user_' + Math.random().toString(36).substring(2, 9);
+  let userMarker;
+  const others = {};
+
+  // Initialize the map
+  const map = L.map('map').setView([21.9541, 96.0877], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Update other users' markers
+  function updateOthers() {
+    fetch(backend + '/locations')
+      .then(r => r.json())
+      .then(data => {
+        for (const id in data) {
+          if (id === userId) continue;
+          const { lat, lng } = data[id];
+          if (!others[id]) {
+            others[id] = L.circleMarker([lat, lng], {
+              radius: 8,
+              color: 'blue',
+              fillColor: '#30f',
+              fillOpacity: 0.8
+            }).addTo(map).bindTooltip(id);
+          } else {
+            others[id].setLatLng([lat, lng]);
+          }
+        }
+      })
+      .catch(err => console.error('Failed to fetch other users:', err));
+  }
+
+  // Continuously get user's location
+  map.locate({ watch: true, setView: true, enableHighAccuracy: true });
+
+  // When location is found
+  map.on('locationfound', e => {
+    const { lat, lng } = e.latlng;
+
+    if (!userMarker) {
+      userMarker = L.circleMarker([lat, lng], {
+        radius: 8,
+        color: 'red',
+        fillColor: '#f03',
+        fillOpacity: 0.9
+      }).addTo(map).bindTooltip('You');
+    } else {
+      userMarker.setLatLng([lat, lng]);
+    }
+
+    fetch(backend + '/update-location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, lat, lng })
+    }).catch(err => console.error('Failed to update location:', err));
+  });
+
+  // Periodically update others every 3 seconds
+  setInterval(updateOthers, 3000);
+</script>
+</body>
+</html>
