@@ -13,21 +13,22 @@
 
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script>
-  // Configuration
-  const backend = 'http://localhost:3000'; // Change to your deployed domain when live
+  // ✅ Change this to your live backend URL once deployed to Render
+  const backend = location.origin; // Automatically adjusts between local and deployed
+
   const userId = 'user_' + Math.random().toString(36).substring(2, 9);
   let userMarker;
   const others = {};
 
-  // Initialize the map
+  // Initialize the map centered on a default location
   const map = L.map('map').setView([21.9541, 96.0877], 17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
   }).addTo(map);
 
-  // Update other users' markers
+  // Get and update other users
   function updateOthers() {
-    fetch(backend + '/locations')
+    fetch(`${backend}/locations`)
       .then(r => r.json())
       .then(data => {
         for (const id in data) {
@@ -48,10 +49,9 @@
       .catch(err => console.error('Failed to fetch other users:', err));
   }
 
-  // Continuously get user's location
+  // Continuously track this user's location
   map.locate({ watch: true, setView: true, enableHighAccuracy: true });
 
-  // When location is found
   map.on('locationfound', e => {
     const { lat, lng } = e.latlng;
 
@@ -66,14 +66,15 @@
       userMarker.setLatLng([lat, lng]);
     }
 
-    fetch(backend + '/update-location', {
+    // Send update to backend
+    fetch(`${backend}/update-location`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, lat, lng })
     }).catch(err => console.error('Failed to update location:', err));
   });
 
-  // Periodically update others every 3 seconds
+  // Update others' locations every 3 seconds
   setInterval(updateOthers, 3000);
 </script>
 </body>

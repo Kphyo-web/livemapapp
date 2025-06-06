@@ -1,15 +1,14 @@
 {
   "name": "livemapapp",
   "version": "1.0.0",
+  "description": "A live location-sharing map app using Leaflet and Express",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": ["leaflet", "live-location", "express", "realtime", "map"],
+  "author": "YourName",
+  "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^5.1.0"
