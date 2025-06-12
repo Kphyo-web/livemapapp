@@ -11,43 +11,28 @@
 <body>
 <div id="map"></div>
 
+<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+
+<!-- Socket.IO client -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"
+        integrity="sha384-7CvQ9o3BeOSIbNV0pobXvuWr0r9vmAORCkO+3E5uV9kMCBQbd0Ho2Hp4ecmfEOJv"
+        crossorigin="anonymous"></script>
+
 <script>
-  // ✅ Backend URL without trailing slash
-  const backend = 'https://2a418b35-a8d2-46d4-a4ee-123c6738cef6-00-9gy304zw357o.pike.replit.dev';
+  // ✅ Replace this with your actual backend Render URL
+  const backend = 'https://your-backend.onrender.com';
+  const socket = io(backend);
 
   const userId = 'user_' + Math.random().toString(36).substring(2, 9);
   let userMarker;
   const others = {};
 
-  // Initialize the map centered on a default location
+  // Initialize the map
   const map = L.map('map').setView([21.9541, 96.0877], 17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
   }).addTo(map);
-
-  // Get and update other users
-  function updateOthers() {
-    fetch(`${backend}/locations`)
-      .then(r => r.json())
-      .then(data => {
-        for (const id in data) {
-          if (id === userId) continue;
-          const { lat, lng } = data[id];
-          if (!others[id]) {
-            others[id] = L.circleMarker([lat, lng], {
-              radius: 8,
-              color: 'blue',
-              fillColor: '#30f',
-              fillOpacity: 0.8
-            }).addTo(map).bindTooltip(id);
-          } else {
-            others[id].setLatLng([lat, lng]);
-          }
-        }
-      })
-      .catch(err => console.error('Failed to fetch other users:', err));
-  }
 
   // Continuously track this user's location
   map.locate({ watch: true, setView: true, enableHighAccuracy: true });
@@ -61,21 +46,33 @@
         color: 'red',
         fillColor: '#f03',
         fillOpacity: 0.9
-      }).addTo(map).bindTooltip('You');
+      }).addTo(map).bindTooltip('You').openTooltip();
     } else {
       userMarker.setLatLng([lat, lng]);
     }
 
-    // Send update to backend
-    fetch(`${backend}/update-location`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, lat, lng })
-    }).catch(err => console.error('Failed to update location:', err));
+    // Emit location to backend
+    socket.emit('updateLocation', { userId, lat, lng });
   });
 
-  // Update others' locations every 3 seconds
-  setInterval(updateOthers, 3000);
+  // Listen for updated locations of all users
+  socket.on('locations', data => {
+    for (const id in data) {
+      if (id === userId) continue;
+      const { lat, lng } = data[id];
+
+      if (!others[id]) {
+        others[id] = L.circleMarker([lat, lng], {
+          radius: 8,
+          color: 'blue',
+          fillColor: '#30f',
+          fillOpacity: 0.8
+        }).addTo(map).bindTooltip(id);
+      } else {
+        others[id].setLatLng([lat, lng]);
+      }
+    }
+  });
 </script>
 </body>
 </html>

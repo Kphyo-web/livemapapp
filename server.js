@@ -1,35 +1,54 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
+
 const app = express();
+const server = http.createServer(app);
 
 // Use PORT from environment variable or default to 3000
 const PORT = process.env.PORT || 3000;
 
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins (or specify yours)
+    methods: ["GET", "POST"]
+  }
+});
+
 app.use(cors());
 app.use(express.json());
 
-// Serve frontend files (index.html, etc.) from root
+// Serve static frontend files (optional if using GitHub Pages)
 app.use(express.static(path.join(__dirname)));
 
+// Track all connected users' locations
 const locations = {};
 
-// Endpoint to update location
-app.post('/update-location', (req, res) => {
-  const { userId, lat, lng } = req.body;
-  if (!userId || typeof lat !== 'number' || typeof lng !== 'number') {
-    return res.status(400).json({ error: 'Missing or invalid data' });
-  }
-  locations[userId] = { lat, lng, timestamp: Date.now() };
-  res.sendStatus(200);
-});
+// Handle socket.io connections
+io.on('connection', (socket) => {
+  console.log(`🟢 New user connected: ${socket.id}`);
 
-// Endpoint to get all locations
-app.get('/locations', (req, res) => {
-  res.json(locations);
+  // Receive location updates from a user
+  socket.on('updateLocation', ({ userId, lat, lng }) => {
+    if (!userId || typeof lat !== 'number' || typeof lng !== 'number') return;
+
+    locations[userId] = { lat, lng, timestamp: Date.now() };
+
+    // Broadcast updated location to all clients
+    io.emit('locations', locations);
+  });
+
+  // Send all existing locations to the newly connected user
+  socket.emit('locations', locations);
+
+  socket.on('disconnect', () => {
+    console.log(`🔴 User disconnected: ${socket.id}`);
+  });
 });
 
 // Start the server
-app.listen(PORT, () => {
-  console.log(`✅ Server is running on http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`✅ Server is running at http://localhost:${PORT}`);
 });
