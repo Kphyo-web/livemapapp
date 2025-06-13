@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow all origins (or specify yours)
+    origin: "*", // Allow all origins (GitHub frontend will connect)
     methods: ["GET", "POST"]
   }
 });
@@ -20,35 +20,53 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// Serve static frontend files (optional if using GitHub Pages)
+// (Optional if serving frontend from Glitch  youre using GitHub Pages)
 app.use(express.static(path.join(__dirname)));
 
 // Track all connected users' locations
 const locations = {};
+const socketToUser = {}; // Map socket.id to userId
 
 // Handle socket.io connections
 io.on('connection', (socket) => {
-  console.log(`🟢 New user connected: ${socket.id}`);
+  console.log(` New user connected: ${socket.id}`);
 
-  // Receive location updates from a user
+  // When a user sends location data
   socket.on('updateLocation', ({ userId, lat, lng }) => {
     if (!userId || typeof lat !== 'number' || typeof lng !== 'number') return;
 
-    locations[userId] = { lat, lng, timestamp: Date.now() };
+    // Save userId to socketId mapping
+    socketToUser[socket.id] = userId;
 
-    // Broadcast updated location to all clients
+    // Save/update location
+    locations[userId] = {
+      lat,
+      lng,
+      timestamp: Date.now(),
+      socketId: socket.id
+    };
+
+    // Broadcast updated location list to all clients
     io.emit('locations', locations);
   });
 
-  // Send all existing locations to the newly connected user
+  // Send existing locations to newly connected client
   socket.emit('locations', locations);
 
+  // When user disconnects
   socket.on('disconnect', () => {
-    console.log(`🔴 User disconnected: ${socket.id}`);
+    console.log(` User disconnected: ${socket.id}`);
+    const userId = socketToUser[socket.id];
+
+    if (userId) {
+      delete locations[userId];
+      delete socketToUser[socket.id];
+      io.emit('locations', locations); // Notify remaining clients
+    }
   });
 });
 
 // Start the server
 server.listen(PORT, () => {
-  console.log(`✅ Server is running at http://localhost:${PORT}`);
+  console.log(` Server is running at http://localhost:${PORT}`);
 });
