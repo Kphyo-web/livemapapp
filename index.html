@@ -32,7 +32,6 @@
       maxZoom: 19,
     }).addTo(map);
 
-    // Track location
     navigator.geolocation.watchPosition((position) => {
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
@@ -48,17 +47,14 @@
         userMarker.setLatLng([lat, lng]);
       }
 
-      // Send to backend
       socket.emit('send-location', { lat, lng });
-    }, 
-    (error) => {
-      alert("Location access is required to show your position on the map.");
-    }, 
-    {
+    },
+    (err) => {
+      alert("Location access is needed to show the map.");
+    }, {
       enableHighAccuracy: true
     });
 
-    // Receive updates
     socket.on('update-users', (users) => {
       for (const id in users) {
         const { lat, lng } = users[id];
