@@ -32,30 +32,31 @@
       maxZoom: 19,
     }).addTo(map);
 
-    navigator.geolocation.watchPosition((position) => {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
+    navigator.geolocation.watchPosition(
+      position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
 
-      if (!userMarker) {
-        userMarker = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: 'red',
-          fillColor: '#f03',
-          fillOpacity: 0.9
-        }).addTo(map).bindTooltip("You").openTooltip();
-      } else {
-        userMarker.setLatLng([lat, lng]);
-      }
+        if (!userMarker) {
+          userMarker = L.circleMarker([lat, lng], {
+            radius: 8,
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.9
+          }).addTo(map).bindTooltip("You").openTooltip();
+        } else {
+          userMarker.setLatLng([lat, lng]);
+        }
 
-      socket.emit('send-location', { lat, lng });
-    },
-    (err) => {
-      alert("Location access is needed to show the map.");
-    }, {
-      enableHighAccuracy: true
-    });
+        socket.emit('send-location', { lat, lng });
+      },
+      err => {
+        alert("Location access is needed to display your position on the map.");
+      },
+      { enableHighAccuracy: true }
+    );
 
-    socket.on('update-users', (users) => {
+    socket.on('update-users', users => {
       for (const id in users) {
         const { lat, lng } = users[id];
         if (!otherUsers[id]) {
