@@ -20,25 +20,20 @@
         crossorigin="anonymous"></script>
 
 <script>
-  //  Your actual Glitch backend
   const backend = 'https://somber-lime-rabbit.glitch.me';
   const socket = io(backend);
 
-  const userId = 'user_' + Math.random().toString(36).substring(2, 9);
   let userMarker;
-  const others = {};
+  const otherUsers = {};
 
-  // Initialize the map
   const map = L.map('map').setView([21.9541, 96.0877], 17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
   }).addTo(map);
 
-  // Continuously track this user's location
-  map.locate({ watch: true, setView: true, enableHighAccuracy: true });
-
-  map.on('locationfound', e => {
-    const { lat, lng } = e.latlng;
+  navigator.geolocation.watchPosition((position) => {
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
 
     if (!userMarker) {
       userMarker = L.circleMarker([lat, lng], {
@@ -46,30 +41,28 @@
         color: 'red',
         fillColor: '#f03',
         fillOpacity: 0.9
-      }).addTo(map).bindTooltip('You').openTooltip();
+      }).addTo(map).bindTooltip("You").openTooltip();
     } else {
       userMarker.setLatLng([lat, lng]);
     }
 
-    // Emit location to backend
-    socket.emit('updateLocation', { userId, lat, lng });
+    // ✅ Send to backend using correct event name
+    socket.emit('send-location', { lat, lng });
   });
 
-  // Listen for updated locations of all users
-  socket.on('locations', data => {
-    for (const id in data) {
-      if (id === userId) continue;
-      const { lat, lng } = data[id];
-
-      if (!others[id]) {
-        others[id] = L.circleMarker([lat, lng], {
+  // ✅ Listen using correct event name from backend
+  socket.on('update-users', (users) => {
+    for (const id in users) {
+      const { lat, lng } = users[id];
+      if (!otherUsers[id]) {
+        otherUsers[id] = L.circleMarker([lat, lng], {
           radius: 8,
           color: 'blue',
           fillColor: '#30f',
           fillOpacity: 0.8
-        }).addTo(map).bindTooltip(id);
+        }).addTo(map).bindTooltip(`User: ${id}`);
       } else {
-        others[id].setLatLng([lat, lng]);
+        otherUsers[id].setLatLng([lat, lng]);
       }
     }
   });
