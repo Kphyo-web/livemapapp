@@ -1,77 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Live Map</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-  <style>
-    html, body, #map { height: 100%; margin: 0; }
-  </style>
+<meta charset="UTF-8">
+<title>Live Location</title>
+<link rel="stylesheet" 
+  href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+/>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+<style>
+  #map { height: 500px }
+</style>
 </head>
 <body>
+
+<h1>Live Location</h1>
 <div id="map"></div>
 
-<!-- Leaflet -->
-<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-
-<!-- Socket.IO client -->
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"
-        integrity="sha384-7CvQ9o3BeOSIbNV0pobXvuWr0r9vmAORCkO+3E5uV9kMCBQbd0Ho2Hp4ecmfEOJv"
-        crossorigin="anonymous"></script>
-
 <script>
-  window.onload = function () {
-    const backend = 'https://somber-lime-rabbit.glitch.me';
-    const socket = io(backend);
+  // ⚡ Change this to YOUR Glitch backend's URL:
+  const socket = io('https://your-app-name.glitch.me'); // <- REPLACE
 
-    let userMarker;
-    const otherUsers = {};
+  // Initialize the map
+  const map = L.map('map').setView([0, 0], 2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+    .addTo(map);
 
-    const map = L.map('map').setView([21.9541, 96.0877], 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
+  // Handle location messages from server
+  socket.on('location', (data) => {
+    L.marker([data.lat, data.lng]).addTo(map);
+  });
 
-    navigator.geolocation.watchPosition(
-      position => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-
-        if (!userMarker) {
-          userMarker = L.circleMarker([lat, lng], {
-            radius: 8,
-            color: 'red',
-            fillColor: '#f03',
-            fillOpacity: 0.9
-          }).addTo(map).bindTooltip("You").openTooltip();
-        } else {
-          userMarker.setLatLng([lat, lng]);
-        }
-
-        socket.emit('send-location', { lat, lng });
-      },
-      err => {
-        alert("Location access is needed to display your position on the map.");
-      },
-      { enableHighAccuracy: true }
-    );
-
-    socket.on('update-users', users => {
-      for (const id in users) {
-        const { lat, lng } = users[id];
-        if (!otherUsers[id]) {
-          otherUsers[id] = L.circleMarker([lat, lng], {
-            radius: 8,
-            color: 'blue',
-            fillColor: '#30f',
-            fillOpacity: 0.8
-          }).addTo(map).bindTooltip(`User: ${id}`);
-        } else {
-          otherUsers[id].setLatLng([lat, lng]);
-        }
-      }
+  // Send your own location
+  navigator.geolocation.getCurrentPosition((pos) => {
+    socket.emit('location', { 
+      lat: pos.coords.latitude, 
+      lng: pos.coords.longitude 
     });
-  };
+
+    // Also show yourself immediately
+    L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map);
+    map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+  });
+
 </script>
+
 </body>
 </html>
