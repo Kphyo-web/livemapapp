@@ -1,72 +1,27 @@
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
+const express = require('express')
+const http = require('http')
+const socketIo = require('socket.io')
 
-const app = express();
-const server = http.createServer(app);
+const app = express()
+const server = http.createServer(app)
+const io = socketIo(server,{ cors:{ origin:'*'}})
 
-// Use PORT from environment variable or default to 3000
-const PORT = process.env.PORT || 3000;
+// Serve static files if you have a "public" directory
+app.use(express.static('public'));
 
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Allow all origins (GitHub frontend will connect)
-    methods: ["GET", "POST"]
-  }
-});
+io.on('connection',(socket)=>{
+  console.log('Client connected')
 
-app.use(cors());
-app.use(express.json());
-
-// (Optional if serving frontend from Glitch  youre using GitHub Pages)
-app.use(express.static(path.join(__dirname)));
-
-// Track all connected users' locations
-const locations = {};
-const socketToUser = {}; // Map socket.id to userId
-
-// Handle socket.io connections
-io.on('connection', (socket) => {
-  console.log(` New user connected: ${socket.id}`);
-
-  // When a user sends location data
-  socket.on('updateLocation', ({ userId, lat, lng }) => {
-    if (!userId || typeof lat !== 'number' || typeof lng !== 'number') return;
-
-    // Save userId to socketId mapping
-    socketToUser[socket.id] = userId;
-
-    // Save/update location
-    locations[userId] = {
-      lat,
-      lng,
-      timestamp: Date.now(),
-      socketId: socket.id
-    };
-
-    // Broadcast updated location list to all clients
-    io.emit('locations', locations);
+  socket.on('location',(data)=>{
+    // Broadcast this location to all other clients
+    socket.broadcast.emit('location',data);
   });
 
-  // Send existing locations to newly connected client
-  socket.emit('locations', locations);
-
-  // When user disconnects
-  socket.on('disconnect', () => {
-    console.log(` User disconnected: ${socket.id}`);
-    const userId = socketToUser[socket.id];
-
-    if (userId) {
-      delete locations[userId];
-      delete socketToUser[socket.id];
-      io.emit('locations', locations); // Notify remaining clients
-    }
-  });
+  socket.on('disconnect',()=>{
+    console.log('Client disconnected');
+  })
 });
 
-// Start the server
-server.listen(PORT, () => {
-  console.log(` Server is running at http://localhost:${PORT}`);
-});
+// Listen on port (Glitch typically uses process.env.PORT)
+const port = process.env.PORT || 3000;
+server.listen(port,()=> console.log(`Server listening on port ${port}`))

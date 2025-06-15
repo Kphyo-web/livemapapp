@@ -19,7 +19,7 @@
 
 <script>
   // ⚡ Change this to YOUR Glitch backend's URL:
-  const socket = io('https://somber-lime-rabbit.glitch.me'); // <- REPLACE
+  const socket = io('https://your-glitch-app-name.glitch.me');  
 
   // Initialize the map
   const map = L.map('map').setView([0, 0], 2);
@@ -31,18 +31,13 @@
     L.marker([data.lat, data.lng]).addTo(map);
   });
 
-  // Send your own location
+  // Send your own location and show it immediately
   navigator.geolocation.getCurrentPosition((pos) => {
-    socket.emit('location', { 
-      lat: pos.coords.latitude, 
-      lng: pos.coords.longitude 
-    });
-
-    // Also show yourself immediately
-    L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map);
-    map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+    const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    socket.emit('location', coords);
+    L.marker([coords.lat, coords.lng]).addTo(map);
+    map.setView([coords.lat, coords.lng], 13);
   });
-
 </script>
 
 </body>
