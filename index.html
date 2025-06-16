@@ -2,73 +2,82 @@
 <html>
 <head>
   <title>Live Map</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <style>
-    html,body,#map { height: 100%; margin: 0 }
+    html, body, #map {
+      height: 100%;
+      margin: 0;
+    }
+    h1 {
+      position: absolute;
+      z-index: 1000;
+      background: white;
+      margin: 10px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: sans-serif;
+    }
   </style>
 </head>
 <body>
-<h1>Live Location</h1>
-<div id="map"></div>
+  <h1>Live Location</h1>
+  <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"
-        integrity="sha384-7CvQ9o3BeOSIbNV0pobXvuWr0r9vmAORCkO+3E5uV9kMCBQbd0Ho2Hp4ecmfEOJv"
-        crossorigin="anonymous"></script>
+  <!-- Load Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 
-<script>
-  // connect to the server
-  const socket = io();
+  <!-- Load socket.io from your Glitch backend -->
+  <script src="https://somber-lime-rabbit.glitch.me/socket.io/socket.io.js"></script>
 
-  const userId = 'user_' + Math.random().toString(36).substring(2, 9);
-  let userMarker;
-  const others = {};
+  <script>
+    const socket = io("https://somber-lime-rabbit.glitch.me");
 
-  // Initialize the map
-  const map = L.map('map').setView([21.9541, 96.0877], 17);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    const userId = 'user_' + Math.random().toString(36).substring(2, 9);
+    let userMarker;
+    const others = {};
 
-  // Continuously track this user's location
-  map.locate({ watch: true, setView: true, enableHighAccuracy: true });
+    const map = L.map('map').setView([21.9541, 96.0877], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
 
-  map.on('locationfound', e => {
-    const { lat, lng } = e.latlng;
+    map.locate({ watch: true, setView: true, enableHighAccuracy: true });
 
-    if (!userMarker) {
-      userMarker = L.circleMarker([lat, lng], {
-        radius: 8,
-        color: 'red',
-        fillColor: '#f03',
-        fillOpacity: 0.9
-      }).addTo(map).bindTooltip('You').openTooltip();
-    } else {
-      userMarker.setLatLng([lat, lng]);
-    }
+    map.on('locationfound', e => {
+      const { lat, lng } = e.latlng;
 
-    // Send your location to the server
-    socket.emit('location', { userId, lat, lng });
-  });
-
-  // Update locations of all connected users
-  socket.on('locations', data => {
-    for (const id in data) {
-      if (id === userId) continue;
-
-      const { lat, lng } = data[id];
-      if (!others[id]) {
-        others[id] = L.circleMarker([lat, lng], {
+      if (!userMarker) {
+        userMarker = L.circleMarker([lat, lng], {
           radius: 8,
-          color: 'blue',
-          fillColor: '#30f',
-          fillOpacity: 0.8
-        }).addTo(map).bindTooltip(id);
+          color: 'red',
+          fillColor: '#f03',
+          fillOpacity: 0.9
+        }).addTo(map).bindTooltip('You').openTooltip();
       } else {
-        others[id].setLatLng([lat, lng]);
+        userMarker.setLatLng([lat, lng]);
       }
-    }
-  });
-</script>
 
+      socket.emit('location', { userId, lat, lng });
+    });
+
+    socket.on('locations', data => {
+      for (const id in data) {
+        if (id === userId) continue;
+
+        const { lat, lng } = data[id];
+        if (!others[id]) {
+          others[id] = L.circleMarker([lat, lng], {
+            radius: 8,
+            color: 'blue',
+            fillColor: '#30f',
+            fillOpacity: 0.8
+          }).addTo(map).bindTooltip(id);
+        } else {
+          others[id].setLatLng([lat, lng]);
+        }
+      }
+    });
+  </script>
 </body>
 </html>
